@@ -187,7 +187,7 @@ class _SalesScreenState extends State<SalesScreen> {
         centerTitle: false,
         actions: [
           IconButton(icon: const Icon(Icons.search), onPressed: () {}),
-          IconButton(icon: const Icon(Icons.settings), onPressed: () {}),
+          // IconButton(icon: const Icon(Icons.settings), onPressed: () {}),
           const SizedBox(width: 8),
           CircleAvatar(
             backgroundColor: colorScheme.primaryContainer,
@@ -245,10 +245,40 @@ class _SalesScreenState extends State<SalesScreen> {
           final isMobile = constraints.maxWidth < 800;
           if (!isMobile || _cart.isEmpty) return const SizedBox.shrink();
 
-          return MobileCartButton(
-            totalItems: _totalItems,
-            totalAmount: _total,
-            onTap: () => _showMobileCart(context),
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: MobileCartButton(
+                    totalItems: _totalItems,
+                    totalAmount: _total,
+                    onTap: () => _showMobileCart(context),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                SizedBox(
+                  height: 56,
+                  width: 56,
+                  child: FloatingActionButton(
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Add custom item clicked'),
+                        ),
+                      );
+                    },
+                    elevation: 2,
+                    backgroundColor: const Color(0xFF1D7AF3),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Icon(Icons.add, size: 28),
+                  ),
+                ),
+              ],
+            ),
           );
         },
       ),

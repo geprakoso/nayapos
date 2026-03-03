@@ -23,86 +23,76 @@ class MobileCartButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1E293B),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Total ($totalItems Items)',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _formatCurrency(totalAmount),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                height: 36,
-                width: 1,
-                color: Colors.white24,
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-              ),
-              FilledButton(
-                onPressed: onTap,
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF1D7AF3),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E293B),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Total ($totalItems Items)',
+                    style: const TextStyle(color: Colors.white70, fontSize: 14),
                   ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
-                  ),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'BAYAR',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _formatCurrency(totalAmount),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
                     ),
-                    SizedBox(width: 8),
-                    Icon(Icons.arrow_forward, size: 20),
-                  ],
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              height: 36,
+              width: 1,
+              color: Colors.white24,
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+            ),
+            FilledButton(
+              onPressed: onTap,
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF1D7AF3),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
                 ),
               ),
-            ],
-          ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'BAYAR',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  SizedBox(width: 8),
+                  Icon(Icons.arrow_forward, size: 20),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
