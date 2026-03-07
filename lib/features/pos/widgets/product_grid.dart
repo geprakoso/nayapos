@@ -59,6 +59,9 @@ class ProductGrid extends StatelessWidget {
                         fontWeight: isSelected ? FontWeight.bold : null,
                       ),
                     ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                     selected: isSelected,
                     selectedColor: const Color(0xFF1D7AF3),
                     showCheckmark: false,
@@ -77,7 +80,7 @@ class ProductGrid extends StatelessWidget {
             ).copyWith(bottom: 100), // Extra padding for mobile FAB
             gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
               maxCrossAxisExtent: 200,
-              childAspectRatio: 0.85,
+              childAspectRatio: 0.7,
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
             ),
@@ -85,51 +88,104 @@ class ProductGrid extends StatelessWidget {
             itemBuilder: (context, index) {
               final product = products[index];
               return Card(
-                clipBehavior: Clip.antiAlias,
-                elevation: 1,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                    width: 1,
+                  ),
+                ),
+                color: colorScheme.surface,
                 child: InkWell(
                   onTap: () => onAddToCart(product),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(
-                        child: Container(
-                          color: colorScheme.surfaceContainerHighest.withValues(
-                            alpha: 0.5,
-                          ),
-                          child: Center(
-                            child: Text(
-                              product.imageUrl,
-                              style: const TextStyle(fontSize: 48),
-                            ),
+                  borderRadius: BorderRadius.circular(16),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: Stack(
+                              children: [
+                              // Rounded Image
+                              Positioned.fill(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: product.imageUrl.startsWith('assets/')
+                                      ? Image.asset(
+                                          product.imageUrl,
+                                          fit: BoxFit.cover,
+                                        )
+                                      : Container(
+                                          color: colorScheme.surfaceContainerHighest,
+                                          child: Center(
+                                            child: Text(
+                                              product.imageUrl,
+                                              style: const TextStyle(fontSize: 48),
+                                            ),
+                                          ),
+                                        ),
+                                ),
+                              ),
+                              // Stock Badge
+                              Positioned(
+                                top: 8,
+                                left: 8,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    'Stock: 12',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              product.name,
-                              style: textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
+                          padding: const EdgeInsets.fromLTRB(4, 12, 4, 4),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                product.name,
+                                style: textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: const Color(0xFF1A237E), // Navy blue
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _formatCurrency(product.price),
-                              style: textTheme.bodyMedium?.copyWith(
-                                color: colorScheme.primary,
-                                fontWeight: FontWeight.bold,
+                              const SizedBox(height: 6),
+                              Text(
+                                _formatCurrency(product.price),
+                                style: textTheme.bodyLarge?.copyWith(
+                                  color: const Color(0xFF2196F3), // Bright blue
+                                  fontWeight: FontWeight.w900,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               );

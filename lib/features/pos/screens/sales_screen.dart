@@ -4,6 +4,8 @@ import '../models/cart_item.dart';
 import '../widgets/product_grid.dart';
 import '../widgets/cart_panel.dart';
 import '../widgets/mobile_cart_button.dart';
+import '../widgets/pos_drawer.dart';
+import 'barcode_scanner_screen.dart';
 
 class SalesScreen extends StatefulWidget {
   const SalesScreen({super.key});
@@ -12,7 +14,8 @@ class SalesScreen extends StatefulWidget {
   State<SalesScreen> createState() => _SalesScreenState();
 }
 
-class _SalesScreenState extends State<SalesScreen> {
+class _SalesScreenState extends State<SalesScreen>
+    with SingleTickerProviderStateMixin {
   // ===========================================================================
   // 1. DATA & STATE
   // ===========================================================================
@@ -24,61 +27,112 @@ class _SalesScreenState extends State<SalesScreen> {
       name: 'Espresso',
       price: 15000,
       category: 'Coffee',
-      imageUrl: '☕',
+      imageUrl: 'assets/images/espresso.png',
     ),
     Product(
       id: '2',
       name: 'Latte',
       price: 25000,
       category: 'Coffee',
-      imageUrl: '☕',
+      imageUrl: 'assets/images/latte.png',
     ),
     Product(
       id: '3',
       name: 'Cappuccino',
       price: 25000,
       category: 'Coffee',
-      imageUrl: '☕',
+      imageUrl: 'assets/images/cappuccino.png',
     ),
     Product(
       id: '4',
       name: 'Croissant',
       price: 20000,
       category: 'Pastry',
-      imageUrl: '🥐',
+      imageUrl: 'assets/images/croissant.png',
     ),
     Product(
       id: '5',
       name: 'Muffin',
       price: 18000,
       category: 'Pastry',
-      imageUrl: '🧁',
+      imageUrl: 'assets/images/muffin.png',
     ),
     Product(
       id: '6',
       name: 'Orange Juice',
       price: 15000,
       category: 'Drinks',
-      imageUrl: '🥤',
+      imageUrl: 'assets/images/orange_juice.png',
     ),
     Product(
       id: '7',
       name: 'Water',
       price: 5000,
       category: 'Drinks',
-      imageUrl: '💧',
+      imageUrl: 'assets/images/water.png',
     ),
     Product(
       id: '8',
       name: 'Sandwich',
       price: 35000,
       category: 'Food',
-      imageUrl: '🥪',
+      imageUrl: 'assets/images/sandwich.png',
     ),
   ];
 
   final List<CartItem> _cart = [];
   String _selectedCategory = 'All';
+  bool _isSearching = false;
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+  final GlobalKey<MobileCartButtonState> _cartButtonKey = GlobalKey<MobileCartButtonState>();
+
+  late final AnimationController _searchAnimController;
+  late final Animation<double> _searchExpandAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+      reverseDuration: const Duration(milliseconds: 300),
+    );
+    _searchExpandAnimation = CurvedAnimation(
+      parent: _searchAnimController,
+      curve: Curves.easeInOutCubicEmphasized,
+      reverseCurve: Curves.easeInOutCubicEmphasized,
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    _searchAnimController.dispose();
+    super.dispose();
+  }
+
+  void _openSearch() {
+    setState(() => _isSearching = true);
+    _searchAnimController.forward();
+    // Focus right after the frame so the TextField is in the tree
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _searchFocusNode.requestFocus();
+    });
+  }
+
+  void _closeSearch() {
+    _searchFocusNode.unfocus();
+    _searchAnimController.reverse().then((_) {
+      if (mounted) {
+        setState(() {
+          _isSearching = false;
+          _searchController.clear();
+        });
+      }
+    });
+  }
 
   List<String> get _categories {
     final categories = _products.map((p) => p.category).toSet().toList();
@@ -87,8 +141,14 @@ class _SalesScreenState extends State<SalesScreen> {
   }
 
   List<Product> get _filteredProducts {
-    if (_selectedCategory == 'All') return _products;
-    return _products.where((p) => p.category == _selectedCategory).toList();
+    final query = _searchController.text.toLowerCase();
+    return _products.where((p) {
+      final matchesCategory =
+          _selectedCategory == 'All' || p.category == _selectedCategory;
+      final matchesSearch =
+          query.isEmpty || p.name.toLowerCase().contains(query);
+      return matchesCategory && matchesSearch;
+    }).toList();
   }
 
   // ===========================================================================
@@ -106,6 +166,8 @@ class _SalesScreenState extends State<SalesScreen> {
         _cart.add(CartItem(product: product));
       }
     });
+    // Trigger pulse animation on the mobile cart button
+    _cartButtonKey.currentState?.pulse();
   }
 
   void _updateQuantity(
@@ -182,27 +244,187 @@ class _SalesScreenState extends State<SalesScreen> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
+      drawer: const PosDrawer(),
       appBar: AppBar(
-        title: const Text('New Sale'),
-        centerTitle: false,
-        actions: [
-          IconButton(icon: const Icon(Icons.search), onPressed: () {}),
-          // IconButton(icon: const Icon(Icons.settings), onPressed: () {}),
-          const SizedBox(width: 8),
-          CircleAvatar(
-            backgroundColor: colorScheme.primaryContainer,
-            child: Text(
-              'A',
-              style: TextStyle(color: colorScheme.onPrimaryContainer),
-            ),
-          ),
-          const SizedBox(width: 16),
-        ],
+        toolbarHeight: 76,
+        automaticallyImplyLeading: false,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        titleSpacing: 4,
+        title: AnimatedBuilder(
+          animation: _searchExpandAnimation,
+          builder: (context, child) {
+            final t = _searchExpandAnimation.value;
+            return Row(
+              children: [
+                // Hamburger menu — slides out & fades on expand
+                SizeTransition(
+                  axis: Axis.horizontal,
+                  sizeFactor:
+                      AlwaysStoppedAnimation(1.0 - t),
+                  child: FadeTransition(
+                    opacity: AlwaysStoppedAnimation(1.0 - t),
+                    child: IconButton(
+                      icon: const Icon(Icons.menu, size: 28),
+                      onPressed: () {
+                        Scaffold.of(context).openDrawer();
+                      },
+                    ),
+                  ),
+                ),
+                SizedBox(width: 4 * (1.0 - t)),
+
+                // Search bar — expanded, grows to full width
+                Expanded(
+                  child: Container(
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(28),
+                    ),
+                    padding: EdgeInsets.only(
+                      left: t > 0 ? 4 : 16,
+                      right: 16,
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Left side: back button (always present, sized by animation)
+                        SizeTransition(
+                          axis: Axis.horizontal,
+                          sizeFactor: AlwaysStoppedAnimation(t),
+                          child: FadeTransition(
+                            opacity: AlwaysStoppedAnimation(t),
+                            child: SizedBox(
+                              height: 52,
+                              child: Center(
+                                child: IconButton(
+                                  icon: const Icon(Icons.arrow_back),
+                                  onPressed: _closeSearch,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // Center: text field or tappable hint
+                        Expanded(
+                          child: _isSearching
+                              ? TextField(
+                                  controller: _searchController,
+                                  focusNode: _searchFocusNode,
+                                  autofocus: true,
+                                  decoration: const InputDecoration(
+                                    hintText: 'Cari Produk',
+                                    border: InputBorder.none,
+                                    isDense: true,
+                                    contentPadding:
+                                        EdgeInsets.symmetric(vertical: 8),
+                                  ),
+                                  style: const TextStyle(fontSize: 16),
+                                  onChanged: (value) => setState(() {}),
+                                )
+                              : GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: _openSearch,
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      'Cari Produk',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                        ),
+
+                        // Right side: always one widget to keep tree stable
+                        if (_isSearching)
+                          // Show clear button only when text is typed,
+                          // otherwise an empty box to hold the slot
+                          _searchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: Icon(
+                                    Icons.close,
+                                    size: 22,
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                  onPressed: () {
+                                    setState(
+                                        () => _searchController.clear());
+                                  },
+                                )
+                              : const SizedBox.shrink()
+                        else
+                          IconButton(
+                            icon: Icon(
+                              Icons.qr_code_scanner_rounded,
+                              size: 22,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                            onPressed: () async {
+                              final barcode = await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const BarcodeScannerScreen(),
+                                ),
+                              );
+                              if (barcode != null && barcode is String) {
+                                // Automatically place the scanned barcode into the search field
+                                _openSearch();
+                                setState(() {
+                                  _searchController.text = barcode;
+                                });
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                SizedBox(width: 4 * (1.0 - t)),
+
+                // Profile avatar — slides out & fades on expand
+                SizeTransition(
+                  axis: Axis.horizontal,
+                  sizeFactor:
+                      AlwaysStoppedAnimation(1.0 - t),
+                  child: FadeTransition(
+                    opacity: AlwaysStoppedAnimation(1.0 - t),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: colorScheme.primary,
+                          width: 2.5,
+                        ),
+                      ),
+                      child: CircleAvatar(
+                        radius: 18,
+                        backgroundColor: colorScheme.primaryContainer,
+                        child: Text(
+                          'A',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final isMobile = constraints.maxWidth < 800;
-
           final productGrid = ProductGrid(
             categories: _categories,
             selectedCategory: _selectedCategory,
@@ -251,6 +473,7 @@ class _SalesScreenState extends State<SalesScreen> {
               children: [
                 Expanded(
                   child: MobileCartButton(
+                    key: _cartButtonKey,
                     totalItems: _totalItems,
                     totalAmount: _total,
                     onTap: () => _showMobileCart(context),
