@@ -32,6 +32,7 @@ class CartPanel extends StatelessWidget {
   final VoidCallback onClearCart;
   final VoidCallback onCheckout;
   final bool isMobileSheet;
+  final bool readonly;
   final VoidCallback? onClose;
 
   const CartPanel({
@@ -44,6 +45,7 @@ class CartPanel extends StatelessWidget {
     required this.onClearCart,
     required this.onCheckout,
     this.isMobileSheet = false,
+    this.readonly = false,
     this.onClose,
   });
 
@@ -72,6 +74,7 @@ class CartPanel extends StatelessWidget {
           _CartHeader(
             cart: cart,
             isMobileSheet: isMobileSheet,
+            readonly: readonly,
             onClearCart: onClearCart,
             textTheme: textTheme,
             colorScheme: colorScheme,
@@ -101,6 +104,7 @@ class CartPanel extends StatelessWidget {
                       final item = cart[index];
                       return _CartItemTile(
                         item: item,
+                        readonly: readonly,
                         formatCurrency: _formatCurrency,
                         onUpdateQuantity: onUpdateQuantity,
                         colorScheme: colorScheme,
@@ -117,6 +121,7 @@ class CartPanel extends StatelessWidget {
             total: total,
             cart: cart,
             isMobileSheet: isMobileSheet,
+            readonly: readonly,
             formatCurrency: _formatCurrency,
             onCheckout: onCheckout,
             colorScheme: colorScheme,
@@ -165,6 +170,7 @@ class _DragHandle extends StatelessWidget {
 class _CartHeader extends StatelessWidget {
   final List<CartItem> cart;
   final bool isMobileSheet;
+  final bool readonly;
   final VoidCallback onClearCart;
   final TextTheme textTheme;
   final ColorScheme colorScheme;
@@ -172,6 +178,7 @@ class _CartHeader extends StatelessWidget {
   const _CartHeader({
     required this.cart,
     required this.isMobileSheet,
+    required this.readonly,
     required this.onClearCart,
     required this.textTheme,
     required this.colorScheme,
@@ -194,8 +201,9 @@ class _CartHeader extends StatelessWidget {
           ),
 
           // Clear button
-          TextButton.icon(
-            onPressed: cart.isEmpty ? null : onClearCart,
+          if (!readonly)
+            TextButton.icon(
+              onPressed: cart.isEmpty ? null : onClearCart,
             icon: Icon(
               Icons.delete_outline,
               size: 18,
@@ -283,6 +291,7 @@ class _EmptyCartPlaceholder extends StatelessWidget {
 /// ```
 class _CartItemTile extends StatelessWidget {
   final CartItem item;
+  final bool readonly;
   final String Function(double) formatCurrency;
   final Function(CartItem, int) onUpdateQuantity;
   final ColorScheme colorScheme;
@@ -290,6 +299,7 @@ class _CartItemTile extends StatelessWidget {
 
   const _CartItemTile({
     required this.item,
+    required this.readonly,
     required this.formatCurrency,
     required this.onUpdateQuantity,
     required this.colorScheme,
@@ -377,52 +387,69 @@ class _CartItemTile extends StatelessWidget {
         Row(
           children: [
             // Quantity controls
-            _QtyButton(
-              icon: Icons.remove,
-              onTap: () => onUpdateQuantity(item, -1),
-              colorScheme: colorScheme,
-            ),
-            Container(
-              constraints: const BoxConstraints(minWidth: 32),
-              alignment: Alignment.center,
-              child: Text(
-                '${item.quantity}',
-                style: textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
+            if (readonly)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  '${item.quantity}x',
+                  style: textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              )
+            else ...[
+              _QtyButton(
+                icon: Icons.remove,
+                onTap: () => onUpdateQuantity(item, -1),
+                colorScheme: colorScheme,
+              ),
+              Container(
+                constraints: const BoxConstraints(minWidth: 32),
+                alignment: Alignment.center,
+                child: Text(
+                  '${item.quantity}',
+                  style: textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
-            ),
-            _QtyButton(
-              icon: Icons.add,
-              onTap: () => onUpdateQuantity(item, 1),
-              colorScheme: colorScheme,
-              isPrimary: true,
-            ),
+              _QtyButton(
+                icon: Icons.add,
+                onTap: () => onUpdateQuantity(item, 1),
+                colorScheme: colorScheme,
+                isPrimary: true,
+              ),
+            ],
 
             const Spacer(),
 
             // Note action button
-            TextButton.icon(
-              onPressed: () {
-                // TODO: Open note editor for this item
-              },
-              icon: Icon(
-                Icons.edit_outlined,
-                size: 14,
-                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-              ),
-              label: Text(
-                item.note.isNotEmpty ? 'Ubah Catatan' : 'Tambah Catatan',
-                style: textTheme.labelSmall?.copyWith(
+            if (!readonly)
+              TextButton.icon(
+                onPressed: () {
+                  // TODO: Open note editor for this item
+                },
+                icon: Icon(
+                  Icons.edit_outlined,
+                  size: 14,
                   color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                 ),
+                label: Text(
+                  item.note.isNotEmpty ? 'Ubah Catatan' : 'Tambah Catatan',
+                  style: textTheme.labelSmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                  ),
+                ),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
               ),
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-            ),
           ],
         ),
       ],
@@ -479,6 +506,7 @@ class _CartSummary extends StatelessWidget {
   final double total;
   final List<CartItem> cart;
   final bool isMobileSheet;
+  final bool readonly;
   final String Function(double) formatCurrency;
   final VoidCallback onCheckout;
   final ColorScheme colorScheme;
@@ -490,6 +518,7 @@ class _CartSummary extends StatelessWidget {
     required this.total,
     required this.cart,
     required this.isMobileSheet,
+    required this.readonly,
     required this.formatCurrency,
     required this.onCheckout,
     required this.colorScheme,
@@ -561,87 +590,89 @@ class _CartSummary extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            if (!readonly) const SizedBox(height: 20),
 
             // ── Action buttons ────────────────────────────────────
             // Mobile sheet: single full-width Checkout button
             // Desktop panel: Print + BAYAR side by side
-            if (isMobileSheet)
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: FilledButton.icon(
-                  onPressed: cart.isEmpty ? null : onCheckout,
-                  icon: const Icon(Icons.receipt_long, size: 20),
-                  label: const Text(
-                    'Checkout',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.8,
+            if (!readonly) ...[
+              if (isMobileSheet)
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: FilledButton.icon(
+                    onPressed: cart.isEmpty ? null : onCheckout,
+                    icon: const Icon(Icons.receipt_long, size: 20),
+                    label: const Text(
+                      'Checkout',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.8,
+                      ),
                     ),
-                  ),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF1D7AF3),
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor:
-                        colorScheme.surfaceContainerHighest,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                ),
-              )
-            else
-              Row(
-                children: [
-                  // Print icon button
-                  Container(
-                    height: 52,
-                    width: 52,
-                    decoration: BoxDecoration(
-                      border:
-                          Border.all(color: colorScheme.outlineVariant),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: IconButton(
-                      onPressed: () {},
-                      icon: Icon(
-                        Icons.print_outlined,
-                        color: colorScheme.onSurfaceVariant,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF1D7AF3),
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor:
+                          colorScheme.surfaceContainerHighest,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  // BAYAR button
-                  Expanded(
-                    child: SizedBox(
+                )
+              else
+                Row(
+                  children: [
+                    // Print icon button
+                    Container(
                       height: 52,
-                      child: FilledButton.icon(
-                        onPressed: cart.isEmpty ? null : onCheckout,
-                        icon: const Icon(Icons.payment, size: 20),
-                        label: const Text(
-                          'BAYAR',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.2,
-                          ),
+                      width: 52,
+                      decoration: BoxDecoration(
+                        border:
+                            Border.all(color: colorScheme.outlineVariant),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: IconButton(
+                        onPressed: () {},
+                        icon: Icon(
+                          Icons.print_outlined,
+                          color: colorScheme.onSurfaceVariant,
                         ),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF1D7AF3),
-                          foregroundColor: Colors.white,
-                          disabledBackgroundColor:
-                              colorScheme.surfaceContainerHighest,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // BAYAR button
+                    Expanded(
+                      child: SizedBox(
+                        height: 52,
+                        child: FilledButton.icon(
+                          onPressed: cart.isEmpty ? null : onCheckout,
+                          icon: const Icon(Icons.payment, size: 20),
+                          label: const Text(
+                            'BAYAR',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFF1D7AF3),
+                            foregroundColor: Colors.white,
+                            disabledBackgroundColor:
+                                colorScheme.surfaceContainerHighest,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+            ],
           ],
         ),
       ),

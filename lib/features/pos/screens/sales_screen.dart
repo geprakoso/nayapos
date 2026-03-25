@@ -591,16 +591,18 @@ class _SalesScreenState extends State<SalesScreen>
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(
-                            maxWidth: 480,
-                            maxHeight: 700,
-                          ),
-                          child: PembayaranScreen(
-                            cart: _cart,
-                            subtotal: _subtotal,
-                            tax: _tax,
-                            total: _total,
+                        child: IntrinsicHeight(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(
+                              maxWidth: 480,
+                            ),
+                            child: PembayaranScreen(
+                              cart: _cart,
+                              subtotal: _subtotal,
+                              tax: _tax,
+                              total: _total,
+                              isDialog: true,
+                            ),
                           ),
                         ),
                       ),

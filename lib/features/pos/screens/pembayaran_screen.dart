@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/cart_item.dart';
+import '../widgets/cart_panel.dart';
 
 /// Payment screen shown after checkout.
 ///
@@ -32,6 +33,7 @@ class PembayaranScreen extends StatefulWidget {
   final double subtotal;
   final double tax;
   final double total;
+  final bool isDialog;
 
   const PembayaranScreen({
     super.key,
@@ -39,6 +41,7 @@ class PembayaranScreen extends StatefulWidget {
     required this.subtotal,
     required this.tax,
     required this.total,
+    this.isDialog = false,
   });
 
   @override
@@ -74,6 +77,33 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
   // ═══════════════════════════════════════════════════════════════════════════
   // HELPERS
   // ═══════════════════════════════════════════════════════════════════════════
+
+  void _showCartSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          child: FractionallySizedBox(
+            heightFactor: 0.85,
+            child: CartPanel(
+              cart: widget.cart,
+              subtotal: widget.subtotal,
+              tax: widget.tax,
+              total: widget.total,
+              isMobileSheet: true,
+              readonly: true,
+              onUpdateQuantity: (item, delta) {},
+              onClearCart: () {},
+              onCheckout: () {},
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   String _formatCurrency(double amount) {
     String result = amount.toStringAsFixed(0);
@@ -125,12 +155,120 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
   // BUILD
   // ═══════════════════════════════════════════════════════════════════════════
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SHARED CONTENT BUILDERS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildHeader(TextTheme textTheme) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 8, 20, 0),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            'Pembayaran',
+            style: textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopSection(ColorScheme colorScheme, TextTheme textTheme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 8),
+          _TotalTagihanCard(
+            total: widget.total,
+            totalItems: _totalItems,
+            formatCurrency: _formatCurrency,
+            colorScheme: colorScheme,
+            textTheme: textTheme,
+            onTap: _showCartSheet,
+          ),
+          const SizedBox(height: 12),
+          _ActionChipsRow(colorScheme: colorScheme),
+          const SizedBox(height: 12),
+          _PaymentMethodTabs(
+            selectedIndex: _selectedMethod,
+            onSelected: (i) => setState(() => _selectedMethod = i),
+            colorScheme: colorScheme,
+            textTheme: textTheme,
+          ),
+          const SizedBox(height: 12),
+          _AmountReceivedCard(
+            formattedAmount: _formatEnteredAmount(),
+            change: _change,
+            formatCurrency: _formatCurrency,
+            colorScheme: colorScheme,
+            textTheme: textTheme,
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNumpad(ColorScheme colorScheme, TextTheme textTheme, Color blue) {
+    return _NumpadSection(
+      onDigit: _onDigit,
+      onBackspace: _onBackspace,
+      onClear: _onClear,
+      canPay: _canPay,
+      onPay: () {
+        Navigator.of(context).pop(true);
+      },
+      colorScheme: colorScheme,
+      textTheme: textTheme,
+      blue: blue,
+      quickAmountChips: _QuickAmountChips(
+        total: widget.total,
+        onExact: _onExactAmount,
+        onQuickAmount: _onQuickAmount,
+        formatCurrency: _formatCurrency,
+        colorScheme: colorScheme,
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // BUILD
+  // ═══════════════════════════════════════════════════════════════════════════
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     const blue = Color(0xFF1D7AF3);
 
+    // Desktop dialog: shrink-wrap to content, no extra whitespace
+    if (widget.isDialog) {
+      return Material(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildHeader(textTheme),
+            _buildTopSection(colorScheme, textTheme),
+            _buildNumpad(colorScheme, textTheme, blue),
+          ],
+        ),
+      );
+    }
+
+    // Mobile full-page: fill the screen, numpad pinned to bottom
     return Scaffold(
       backgroundColor: colorScheme.surface,
       appBar: AppBar(
@@ -148,7 +286,6 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // ── Scrollable top section ──────────────────────────────
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -156,34 +293,24 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 8),
-
-                    // ── Total Tagihan ────────────────────────────────
                     _TotalTagihanCard(
                       total: widget.total,
                       totalItems: _totalItems,
                       formatCurrency: _formatCurrency,
                       colorScheme: colorScheme,
                       textTheme: textTheme,
+                      onTap: _showCartSheet,
                     ),
-
                     const SizedBox(height: 16),
-
-                    // ── Action chips: Pelanggan, Diskon, Pajak ──────
                     _ActionChipsRow(colorScheme: colorScheme),
-
                     const SizedBox(height: 16),
-
-                    // ── Payment method tabs ──────────────────────────
                     _PaymentMethodTabs(
                       selectedIndex: _selectedMethod,
                       onSelected: (i) => setState(() => _selectedMethod = i),
                       colorScheme: colorScheme,
                       textTheme: textTheme,
                     ),
-
                     const SizedBox(height: 16),
-
-                    // ── Amount received section ─────────────────────
                     _AmountReceivedCard(
                       formattedAmount: _formatEnteredAmount(),
                       change: _change,
@@ -191,10 +318,7 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
                       colorScheme: colorScheme,
                       textTheme: textTheme,
                     ),
-
                     const SizedBox(height: 16),
-
-                    // ── Quick amount chips ───────────────────────────
                     _QuickAmountChips(
                       total: widget.total,
                       onExact: _onExactAmount,
@@ -202,26 +326,25 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
                       formatCurrency: _formatCurrency,
                       colorScheme: colorScheme,
                     ),
-
                     const SizedBox(height: 16),
                   ],
                 ),
               ),
             ),
-
-            // ── Numpad + Pay button (pinned to bottom) ──────────────
-            _NumpadSection(
-              onDigit: _onDigit,
-              onBackspace: _onBackspace,
-              onClear: _onClear,
-              canPay: _canPay,
-              onPay: () {
-                // TODO: Process payment
-                Navigator.of(context).pop(true);
-              },
-              colorScheme: colorScheme,
-              textTheme: textTheme,
-              blue: blue,
+            Expanded(
+              child: _NumpadSection(
+                onDigit: _onDigit,
+                onBackspace: _onBackspace,
+                onClear: _onClear,
+                canPay: _canPay,
+                onPay: () {
+                  Navigator.of(context).pop(true);
+                },
+                colorScheme: colorScheme,
+                textTheme: textTheme,
+                blue: blue,
+                expandVertically: true,
+              ),
             ),
           ],
         ),
@@ -242,6 +365,7 @@ class _TotalTagihanCard extends StatelessWidget {
   final String Function(double) formatCurrency;
   final ColorScheme colorScheme;
   final TextTheme textTheme;
+  final VoidCallback? onTap;
 
   const _TotalTagihanCard({
     required this.total,
@@ -249,58 +373,68 @@ class _TotalTagihanCard extends StatelessWidget {
     required this.formatCurrency,
     required this.colorScheme,
     required this.textTheme,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(14),
       ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.shopping_bag_outlined,
-            size: 22,
-            color: colorScheme.onSurfaceVariant,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
               children: [
-                Text(
-                  'Total Tagihan',
-                  style: textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
+                Icon(
+                  Icons.shopping_bag_outlined,
+                  size: 22,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Total Tagihan',
+                        style: textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '$totalItems item pesanan',
+                        style: textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 2),
                 Text(
-                  '$totalItems item pesanan',
-                  style: textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
+                  formatCurrency(total),
+                  style: textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF1D7AF3),
                   ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.keyboard_arrow_down,
+                  size: 20,
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ],
             ),
           ),
-          Text(
-            formatCurrency(total),
-            style: textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w800,
-              color: const Color(0xFF1D7AF3),
-            ),
-          ),
-          const SizedBox(width: 4),
-          Icon(
-            Icons.keyboard_arrow_down,
-            size: 20,
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -412,7 +546,7 @@ class _PaymentMethodTabs extends StatelessWidget {
               child: InkWell(
                 onTap: () => onSelected(i),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -467,7 +601,7 @@ class _AmountReceivedCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(16),
@@ -486,7 +620,7 @@ class _AmountReceivedCard extends StatelessWidget {
               color: colorScheme.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
@@ -502,7 +636,7 @@ class _AmountReceivedCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   formattedAmount,
-                  style: textTheme.displaySmall?.copyWith(
+                  style: textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.w800,
                     color: colorScheme.onSurface,
                   ),
@@ -511,12 +645,12 @@ class _AmountReceivedCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Divider(
             color: colorScheme.outlineVariant.withValues(alpha: 0.4),
             height: 1,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -653,6 +787,8 @@ class _NumpadSection extends StatelessWidget {
   final ColorScheme colorScheme;
   final TextTheme textTheme;
   final Color blue;
+  final Widget? quickAmountChips;
+  final bool expandVertically;
 
   const _NumpadSection({
     required this.onDigit,
@@ -663,12 +799,46 @@ class _NumpadSection extends StatelessWidget {
     required this.colorScheme,
     required this.textTheme,
     required this.blue,
+    this.quickAmountChips,
+    this.expandVertically = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    Widget row1 = Row(
+      children: [
+        _numKey('1'),
+        _numKey('2'),
+        _numKey('3'),
+        _funcKey(Icons.backspace_outlined, onBackspace),
+      ],
+    );
+    Widget row2 = Row(
+      children: [
+        _numKey('4'),
+        _numKey('5'),
+        _numKey('6'),
+        _emptyOrClear(),
+      ],
+    );
+    Widget row3 = Row(
+      children: [
+        _numKey('7'),
+        _numKey('8'),
+        _numKey('9'),
+        _funcKeyText('C', onClear),
+      ],
+    );
+    Widget row4 = Row(
+      children: [
+        _numKey('000'),
+        _numKey('0'),
+        _payButton(),
+      ],
+    );
+
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
       decoration: BoxDecoration(
         color: colorScheme.surface,
         border: Border(
@@ -677,49 +847,35 @@ class _NumpadSection extends StatelessWidget {
           ),
         ),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Row 1: 1, 2, 3, ⌫
-          Row(
-            children: [
-              _numKey('1'),
-              _numKey('2'),
-              _numKey('3'),
-              _funcKey(Icons.backspace_outlined, onBackspace),
-            ],
-          ),
-          const SizedBox(height: 8),
-          // Row 2: 4, 5, 6, (empty → clear)
-          Row(
-            children: [
-              _numKey('4'),
-              _numKey('5'),
-              _numKey('6'),
-              _emptyOrClear(),
-            ],
-          ),
-          const SizedBox(height: 8),
-          // Row 3: 7, 8, 9, C
-          Row(
-            children: [
-              _numKey('7'),
-              _numKey('8'),
-              _numKey('9'),
-              _funcKeyText('C', onClear),
-            ],
-          ),
-          const SizedBox(height: 8),
-          // Row 4: 000, 0, Bayar
-          Row(
-            children: [
-              _numKey('000'),
-              _numKey('0'),
-              _payButton(),
-            ],
-          ),
-        ],
-      ),
+      child: expandVertically
+          ? Column(
+              children: [
+                if (quickAmountChips != null) ...[
+                  quickAmountChips!,
+                  const SizedBox(height: 10),
+                ],
+                Expanded(child: Padding(padding: const EdgeInsets.symmetric(vertical: 3), child: row1)),
+                Expanded(child: Padding(padding: const EdgeInsets.symmetric(vertical: 3), child: row2)),
+                Expanded(child: Padding(padding: const EdgeInsets.symmetric(vertical: 3), child: row3)),
+                Expanded(child: Padding(padding: const EdgeInsets.symmetric(vertical: 3), child: row4)),
+              ],
+            )
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (quickAmountChips != null) ...[
+                  quickAmountChips!,
+                  const SizedBox(height: 10),
+                ],
+                row1,
+                const SizedBox(height: 6),
+                row2,
+                const SizedBox(height: 6),
+                row3,
+                const SizedBox(height: 6),
+                row4,
+              ],
+            ),
     );
   }
 
@@ -728,7 +884,7 @@ class _NumpadSection extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4),
         child: SizedBox(
-          height: 56,
+          height: expandVertically ? double.infinity : 48,
           child: Material(
             color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(14),
@@ -756,7 +912,7 @@ class _NumpadSection extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4),
         child: SizedBox(
-          height: 56,
+          height: expandVertically ? double.infinity : 48,
           child: Material(
             color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(14),
@@ -778,7 +934,7 @@ class _NumpadSection extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4),
         child: SizedBox(
-          height: 56,
+          height: expandVertically ? double.infinity : 48,
           child: Material(
             color: Colors.transparent,
             borderRadius: BorderRadius.circular(14),
@@ -806,7 +962,7 @@ class _NumpadSection extends StatelessWidget {
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: const SizedBox(height: 56),
+        child: SizedBox(height: expandVertically ? double.infinity : 48),
       ),
     );
   }
@@ -817,7 +973,7 @@ class _NumpadSection extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4),
         child: SizedBox(
-          height: 56,
+          height: expandVertically ? double.infinity : 48,
           child: FilledButton.icon(
             onPressed: canPay ? onPay : null,
             icon: const Icon(Icons.payments_outlined, size: 20),
