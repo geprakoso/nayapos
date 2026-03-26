@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/cart_item.dart';
 import '../models/member.dart';
 import '../widgets/cart_panel.dart';
+import '../widgets/tempo_dialog.dart';
 import 'member_picker_screen.dart';
 
 /// Payment screen shown after checkout.
@@ -168,6 +169,38 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
     setState(() => _enteredAmount = widget.total.toStringAsFixed(0));
   }
 
+  void _handlePay() async {
+    if (_canPay) {
+      // Normal full payment
+      Navigator.of(context).pop(true);
+      return;
+    }
+
+    // Insufficient payment: Show tempo dialog
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => TempoDialog(
+        initialMember: _selectedMember,
+        initialDueDate: DateTime.now().add(const Duration(days: 30)),
+      ),
+    );
+
+    if (result != null && mounted) {
+      setState(() {
+        _selectedMember = result['member'];
+        // In a real app, you'd also save the dueDate to the transaction state.
+      });
+
+      // If they saved from the dialog, we treat it as "Proceed with Tempo"
+      Navigator.of(context).pop({
+        'status': 'tempo',
+        'member': _selectedMember,
+        'dueDate': result['dueDate'],
+        'amountReceived': _amountReceived,
+      });
+    }
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   // BUILD
   // ═══════════════════════════════════════════════════════════════════════════
@@ -248,10 +281,8 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
       onDigit: _onDigit,
       onBackspace: _onBackspace,
       onClear: _onClear,
-      canPay: _canPay,
-      onPay: () {
-        Navigator.of(context).pop(true);
-      },
+      canPay: true, // Allow clicking to trigger Tempo dialog if insufficient
+      onPay: _handlePay,
       colorScheme: colorScheme,
       textTheme: textTheme,
       blue: blue,
@@ -365,10 +396,8 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
                 onDigit: _onDigit,
                 onBackspace: _onBackspace,
                 onClear: _onClear,
-                canPay: _canPay,
-                onPay: () {
-                  Navigator.of(context).pop(true);
-                },
+                canPay: true, // Allow clicking to trigger Tempo dialog if insufficient
+                onPay: _handlePay,
                 colorScheme: colorScheme,
                 textTheme: textTheme,
                 blue: blue,
