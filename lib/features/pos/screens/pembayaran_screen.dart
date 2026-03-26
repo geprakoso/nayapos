@@ -1,10 +1,16 @@
+import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/cart_item.dart';
 import '../models/member.dart';
+import '../models/bank_account.dart';
 import '../widgets/cart_panel.dart';
 import '../widgets/diskon_dialog.dart';
 import '../widgets/tempo_dialog.dart';
 import 'member_picker_screen.dart';
+import 'bank_transfer_picker_screen.dart';
 
 /// Payment screen shown after checkout.
 ///
@@ -66,6 +72,12 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
   /// Selected member (customer). Null until user picks one.
   Member? _selectedMember;
 
+  /// Selected bank account for Transfer method. Null until user picks one.
+  BankAccount? _selectedBankAccount;
+
+  /// Payment proof image for Transfer method.
+  File? _buktiPembayaranImage;
+
   String _discountType = 'nominal';
   double _discountValue = 0;
 
@@ -103,6 +115,13 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
   }
 
   bool get _canPay => _amountReceived >= _calculatedTotal;
+
+  bool get _canSubmit {
+    if (_selectedMethod == 1) {
+      return _selectedBankAccount != null && _buktiPembayaranImage != null;
+    }
+    return true;
+  }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // HELPERS
@@ -160,6 +179,31 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
       setState(() {
         _discountType = result['type'];
         _discountValue = result['value'];
+      });
+    }
+  }
+
+  void _openBankPicker() async {
+    final account = await Navigator.of(context).push<BankAccount>(
+      MaterialPageRoute(
+        builder: (_) => BankTransferPickerScreen(
+          selectedAccount: _selectedBankAccount,
+        ),
+      ),
+    );
+    if (account != null && mounted) {
+      setState(() => _selectedBankAccount = account);
+    }
+  }
+
+  Future<void> _pickBuktiPembayaran() async {
+    final ImagePicker picker = ImagePicker();
+    // Allow user to pick from gallery or take a picture. We can default to gallery or show dialog.
+    // For simplicity, let's open camera. But standard is letting them pick.
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+    if (image != null && mounted) {
+      setState(() {
+        _buktiPembayaranImage = File(image.path);
       });
     }
   }
@@ -305,18 +349,61 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
             colorScheme: colorScheme,
             textTheme: textTheme,
           ),
-          const SizedBox(height: 12),
-          _AmountReceivedCard(
-            formattedAmount: _formatEnteredAmount(),
-            amountReceived: _amountReceived,
-            total: _calculatedTotal,
-            formatCurrency: _formatCurrency,
-            colorScheme: colorScheme,
-            textTheme: textTheme,
-          ),
+          const SizedBox(height: 16),
+          _buildPaymentContent(colorScheme, textTheme),
           const SizedBox(height: 8),
         ],
       ),
+    );
+  }
+
+  Widget _buildPaymentContent(ColorScheme colorScheme, TextTheme textTheme) {
+    if (_selectedMethod == 1) {
+      // Transfer Method
+      if (_selectedBankAccount != null) {
+        return Column(
+          children: [
+            _SelectedBankAccountCard(
+              account: _selectedBankAccount!,
+              colorScheme: colorScheme,
+              textTheme: textTheme,
+              onChangeTap: _openBankPicker,
+            ),
+            const SizedBox(height: 16),
+            _BuktiPembayaranCard(
+              imageFile: _buktiPembayaranImage,
+              onTapPick: _pickBuktiPembayaran,
+              onClear: () => setState(() => _buktiPembayaranImage = null),
+              colorScheme: colorScheme,
+              textTheme: textTheme,
+            ),
+          ],
+        );
+      }
+      return _TransferSelectorCard(
+        colorScheme: colorScheme,
+        textTheme: textTheme,
+        onTap: _openBankPicker,
+      );
+    }
+
+    if (_selectedMethod == 2) {
+      // Others Method - Placeholder
+      return Container(
+        height: 120,
+        alignment: Alignment.center,
+        child: Text('Metode pembayaran lainnya', style: textTheme.bodyMedium),
+      );
+    }
+
+    // Default Tunai (Cash)
+    return _AmountReceivedCard(
+      formattedAmount: _formatEnteredAmount(),
+      amountReceived: _amountReceived,
+      total: _calculatedTotal,
+      formatCurrency: _formatCurrency,
+      colorScheme: colorScheme,
+      textTheme: textTheme,
     );
   }
 
@@ -365,7 +452,30 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
           children: [
             _buildHeader(textTheme),
             _buildTopSection(colorScheme, textTheme),
-            _buildNumpad(colorScheme, textTheme, blue),
+            if (_selectedMethod == 0)
+              _buildNumpad(colorScheme, textTheme, blue)
+            else
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: FilledButton.icon(
+                  onPressed: _canSubmit ? _handlePay : null,
+                  icon: const Icon(Icons.payments_outlined),
+                  label: const Text(
+                    'Lanjutkan Pembayaran',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  ),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: blue,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: colorScheme.outlineVariant,
+                    disabledForegroundColor: colorScheme.onSurfaceVariant,
+                    minimumSize: const Size(double.infinity, 56),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       );
@@ -421,40 +531,70 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
                       textTheme: textTheme,
                     ),
                     const SizedBox(height: 16),
-                    _AmountReceivedCard(
-                      formattedAmount: _formatEnteredAmount(),
-                      amountReceived: _amountReceived,
-                      total: _calculatedTotal,
-                      formatCurrency: _formatCurrency,
-                      colorScheme: colorScheme,
-                      textTheme: textTheme,
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      child: _buildPaymentContent(colorScheme, textTheme),
                     ),
                     const SizedBox(height: 16),
-                    _QuickAmountChips(
-                      total: _calculatedTotal,
-                      onExact: _onExactAmount,
-                      onQuickAmount: _onQuickAmount,
-                      formatCurrency: _formatCurrency,
-                      colorScheme: colorScheme,
-                    ),
-                    const SizedBox(height: 16),
+                    if (_selectedMethod == 0) ...[
+                      _QuickAmountChips(
+                        total: _calculatedTotal,
+                        onExact: _onExactAmount,
+                        onQuickAmount: _onQuickAmount,
+                        formatCurrency: _formatCurrency,
+                        colorScheme: colorScheme,
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                   ],
                 ),
               ),
             ),
-            Expanded(
-              child: _NumpadSection(
-                onDigit: _onDigit,
-                onBackspace: _onBackspace,
-                onClear: _onClear,
-                isAmountSufficient: _canPay,
-                onPay: _handlePay,
-                colorScheme: colorScheme,
-                textTheme: textTheme,
-                blue: blue,
-                expandVertically: true,
+            if (_selectedMethod == 0)
+              Expanded(
+                child: _NumpadSection(
+                  onDigit: _onDigit,
+                  onBackspace: _onBackspace,
+                  onClear: _onClear,
+                  isAmountSufficient: _canPay,
+                  onPay: _handlePay,
+                  colorScheme: colorScheme,
+                  textTheme: textTheme,
+                  blue: blue,
+                  expandVertically: true,
+                ),
+              )
+            else
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: colorScheme.surface,
+                  border: Border(
+                    top: BorderSide(
+                      color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+                    ),
+                  ),
+                ),
+                child: FilledButton.icon(
+                  onPressed: _canSubmit ? _handlePay : null,
+                  icon: const Icon(Icons.payments_outlined),
+                  label: const Text(
+                    'Lanjutkan Pembayaran',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  ),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: blue,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                    disabledForegroundColor: colorScheme.onSurfaceVariant,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
               ),
-            ),
           ],
         ),
       ),
@@ -570,32 +710,35 @@ class _ActionChipsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        _ActionChip(
-          icon: selectedMemberName != null
-              ? Icons.person
-              : Icons.person_outline,
-          label: selectedMemberName ?? 'Pelanggan',
-          colorScheme: colorScheme,
-          onTap: onPelangganTap,
-          isSelected: selectedMemberName != null,
-        ),
-        const SizedBox(width: 8),
-        _ActionChip(
-          icon: Icons.percent,
-          label: diskonLabel,
-          colorScheme: colorScheme,
-          onTap: onDiskonTap,
-          isSelected: hasDiskon,
-        ),
-        const SizedBox(width: 8),
-        _ActionChip(
-          icon: Icons.receipt_outlined,
-          label: 'Pajak',
-          colorScheme: colorScheme,
-        ),
-      ],
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _ActionChip(
+            icon: selectedMemberName != null
+                ? Icons.person
+                : Icons.person_outline,
+            label: selectedMemberName ?? 'Pelanggan',
+            colorScheme: colorScheme,
+            onTap: onPelangganTap,
+            isSelected: selectedMemberName != null,
+          ),
+          const SizedBox(width: 8),
+          _ActionChip(
+            icon: Icons.percent,
+            label: diskonLabel,
+            colorScheme: colorScheme,
+            onTap: onDiskonTap,
+            isSelected: hasDiskon,
+          ),
+          const SizedBox(width: 8),
+          _ActionChip(
+            icon: Icons.receipt_outlined,
+            label: 'Pajak',
+            colorScheme: colorScheme,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -661,7 +804,7 @@ class _PaymentMethodTabs extends StatelessWidget {
   static const _methods = [
     (icon: Icons.payments_outlined, label: 'Tunai'),
     (icon: Icons.account_balance_outlined, label: 'Transfer'),
-    (icon: Icons.more_horiz, label: 'Lainnya'),
+    (icon: Icons.expand_circle_down_outlined, label: 'Lainnya'),
   ];
 
   @override
@@ -1114,6 +1257,8 @@ class _NumpadSection extends StatelessWidget {
   }
 
   Widget _payButton() {
+    // For transfer, if no bank selected, maybe show "Pilih Rekening"
+    // But for now keeping it simple.
     final labelText = isAmountSufficient ? 'Bayar' : 'Lanjutkan';
     final buttonStyle = FilledButton.styleFrom(
       backgroundColor: blue,
@@ -1140,6 +1285,7 @@ class _NumpadSection extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
+                  // Disable if Transfer but no selection?
                   style: buttonStyle,
                 )
               : FilledButton(
@@ -1158,3 +1304,351 @@ class _NumpadSection extends StatelessWidget {
     );
   }
 }
+
+// ── Transfer Selector Card ──────────────────────────────────────────────────
+
+class _TransferSelectorCard extends StatelessWidget {
+  final ColorScheme colorScheme;
+  final TextTheme textTheme;
+  final VoidCallback onTap;
+
+  const _TransferSelectorCard({
+    required this.colorScheme,
+    required this.textTheme,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const blueColor = Color(0xFF1D7AF3);
+
+    return CustomPaint(
+      painter: _DashedRectPainter(color: blueColor.withValues(alpha: 0.6)),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.add, size: 36, color: blueColor),
+                const SizedBox(height: 12),
+                Text(
+                  'Pilih nomor rekening untuk tujuan transfer',
+                  textAlign: TextAlign.center,
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: blueColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DashedRectPainter extends CustomPainter {
+  final Color color;
+  final double strokeWidth;
+  final double gap;
+  final double dash;
+
+  _DashedRectPainter({
+    required this.color,
+    this.strokeWidth = 1.5,
+    this.gap = 5.0,
+    this.dash = 8.0,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke;
+
+    final RRect rrect = RRect.fromLTRBR(
+      0,
+      0,
+      size.width,
+      size.height,
+      const Radius.circular(16),
+    );
+
+    final Path path = Path()..addRRect(rrect);
+
+    final Path dashedPath = Path();
+    for (final PathMetric metric in path.computeMetrics()) {
+      double distance = 0.0;
+      while (distance < metric.length) {
+        dashedPath.addPath(
+          metric.extractPath(distance, distance + dash),
+          Offset.zero,
+        );
+        distance += dash + gap;
+      }
+    }
+
+    canvas.drawPath(dashedPath, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _SelectedBankAccountCard extends StatelessWidget {
+  final BankAccount account;
+  final ColorScheme colorScheme;
+  final TextTheme textTheme;
+  final VoidCallback onChangeTap;
+
+  const _SelectedBankAccountCard({
+    required this.account,
+    required this.colorScheme,
+    required this.textTheme,
+    required this.onChangeTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const blueColor = Color(0xFF1D7AF3);
+
+    return InkWell(
+      onTap: onChangeTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  _buildLogo(),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              account.bankName,
+                              style: textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: colorScheme.onSurface,
+                              ),
+                            ),
+                            TextButton.icon(
+                              onPressed: () async {
+                                final copiedText = '${account.bankName}\n${account.ownerName}\n${account.accountNumber}';
+                                await Clipboard.setData(ClipboardData(text: copiedText));
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Detail rekening berhasil disalin'),
+                                      duration: Duration(seconds: 2),
+                                    ),
+                                  );
+                                }
+                              },
+                              icon: const Icon(Icons.copy, size: 16),
+                              label: const Text('SALIN', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                              style: TextButton.styleFrom(
+                                foregroundColor: blueColor,
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                                minimumSize: const Size(0, 32),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          account.accountNumber,
+                          style: textTheme.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.w500,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Divider(color: colorScheme.outlineVariant.withValues(alpha: 0.3), height: 1),
+            const SizedBox(height: 12),
+            Text(
+              'PEMILIK REKENING',
+              style: textTheme.labelSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: colorScheme.onSurfaceVariant,
+                letterSpacing: 0.8,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              account.ownerName,
+              style: textTheme.bodyLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: colorScheme.onSurface,
+              ),
+            ),
+          ],
+        ),
+      ),
+      ),
+    );
+  }
+
+  Widget _buildLogo() {
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFEBEBEB)),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: account.imageAssetPath != null
+            ? Image.asset(
+                account.imageAssetPath!,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) =>
+                    const Icon(Icons.account_balance, color: Colors.grey),
+              )
+            : const Icon(Icons.account_balance, color: Colors.grey),
+      ),
+    );
+  }
+}
+
+class _BuktiPembayaranCard extends StatelessWidget {
+  final File? imageFile;
+  final VoidCallback onTapPick;
+  final VoidCallback onClear;
+  final ColorScheme colorScheme;
+  final TextTheme textTheme;
+
+  const _BuktiPembayaranCard({
+    required this.imageFile,
+    required this.onTapPick,
+    required this.onClear,
+    required this.colorScheme,
+    required this.textTheme,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const blueColor = Color(0xFF1D7AF3);
+
+    if (imageFile != null) {
+      return Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Bukti Pembayaran',
+                    style: textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.2,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: onClear,
+                    icon: const Icon(Icons.close, size: 20),
+                    color: colorScheme.onSurfaceVariant,
+                    constraints: const BoxConstraints(),
+                    padding: EdgeInsets.zero,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.file(
+                  imageFile!,
+                  width: double.infinity,
+                  height: 160,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return CustomPaint(
+      painter: _DashedRectPainter(color: blueColor.withValues(alpha: 0.6)),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTapPick,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: blueColor.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.camera_alt_outlined, size: 28, color: blueColor),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Ambil Bukti Pembayaran',
+                  textAlign: TextAlign.center,
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: Colors.black,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
