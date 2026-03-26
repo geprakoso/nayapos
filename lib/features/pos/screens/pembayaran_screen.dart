@@ -75,9 +75,6 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
     return double.tryParse(_enteredAmount) ?? 0;
   }
 
-  double get _change =>
-      (_amountReceived - widget.total).clamp(0, double.infinity);
-
   bool get _canPay => _amountReceived >= widget.total;
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -230,7 +227,8 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
           const SizedBox(height: 12),
           _AmountReceivedCard(
             formattedAmount: _formatEnteredAmount(),
-            change: _change,
+            amountReceived: _amountReceived,
+            total: widget.total,
             formatCurrency: _formatCurrency,
             colorScheme: colorScheme,
             textTheme: textTheme,
@@ -343,7 +341,8 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
                     const SizedBox(height: 16),
                     _AmountReceivedCard(
                       formattedAmount: _formatEnteredAmount(),
-                      change: _change,
+                      amountReceived: _amountReceived,
+                      total: widget.total,
                       formatCurrency: _formatCurrency,
                       colorScheme: colorScheme,
                       textTheme: textTheme,
@@ -634,14 +633,16 @@ class _PaymentMethodTabs extends StatelessWidget {
 
 class _AmountReceivedCard extends StatelessWidget {
   final String formattedAmount;
-  final double change;
+  final double amountReceived;
+  final double total;
   final String Function(double) formatCurrency;
   final ColorScheme colorScheme;
   final TextTheme textTheme;
 
   const _AmountReceivedCard({
     required this.formattedAmount,
-    required this.change,
+    required this.amountReceived,
+    required this.total,
     required this.formatCurrency,
     required this.colorScheme,
     required this.textTheme,
@@ -705,14 +706,14 @@ class _AmountReceivedCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Kembalian',
+                amountReceived < total ? 'Kekurangan' : 'Kembalian',
                 style: textTheme.bodyMedium?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.w500,
                 ),
               ),
               Text(
-                formatCurrency(change),
+                formatCurrency((amountReceived - total).abs()),
                 style: textTheme.bodyLarge?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: colorScheme.onSurfaceVariant,
