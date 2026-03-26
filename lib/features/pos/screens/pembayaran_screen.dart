@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/cart_item.dart';
+import '../models/member.dart';
 import '../widgets/cart_panel.dart';
+import 'member_picker_screen.dart';
 
 /// Payment screen shown after checkout.
 ///
@@ -59,6 +61,9 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
   /// Raw digits entered by the user (no formatting).
   String _enteredAmount = '';
 
+  /// Selected member (customer). Null until user picks one.
+  Member? _selectedMember;
+
   // ═══════════════════════════════════════════════════════════════════════════
   // COMPUTED
   // ═══════════════════════════════════════════════════════════════════════════
@@ -103,6 +108,17 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
         );
       },
     );
+  }
+
+  void _openMemberPicker() async {
+    final member = await Navigator.of(context).push<Member>(
+      MaterialPageRoute(
+        builder: (_) => const MemberPickerScreen(),
+      ),
+    );
+    if (member != null && mounted) {
+      setState(() => _selectedMember = member);
+    }
   }
 
   String _formatCurrency(double amount) {
@@ -197,7 +213,11 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
             onTap: _showCartSheet,
           ),
           const SizedBox(height: 12),
-          _ActionChipsRow(colorScheme: colorScheme),
+          _ActionChipsRow(
+            colorScheme: colorScheme,
+            selectedMemberName: _selectedMember?.name,
+            onPelangganTap: _openMemberPicker,
+          ),
           const SizedBox(height: 12),
           _PaymentMethodTabs(
             selectedIndex: _selectedMethod,
@@ -302,7 +322,11 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
                       onTap: _showCartSheet,
                     ),
                     const SizedBox(height: 16),
-                    _ActionChipsRow(colorScheme: colorScheme),
+                    _ActionChipsRow(
+                      colorScheme: colorScheme,
+                      selectedMemberName: _selectedMember?.name,
+                      onPelangganTap: _openMemberPicker,
+                    ),
                     const SizedBox(height: 16),
                     _PaymentMethodTabs(
                       selectedIndex: _selectedMethod,
@@ -444,17 +468,25 @@ class _TotalTagihanCard extends StatelessWidget {
 
 class _ActionChipsRow extends StatelessWidget {
   final ColorScheme colorScheme;
+  final String? selectedMemberName;
+  final VoidCallback? onPelangganTap;
 
-  const _ActionChipsRow({required this.colorScheme});
+  const _ActionChipsRow({
+    required this.colorScheme,
+    this.selectedMemberName,
+    this.onPelangganTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
         _ActionChip(
-          icon: Icons.person_outline,
-          label: 'Pelanggan',
+          icon: selectedMemberName != null ? Icons.person : Icons.person_outline,
+          label: selectedMemberName ?? 'Pelanggan',
           colorScheme: colorScheme,
+          onTap: onPelangganTap,
+          isSelected: selectedMemberName != null,
         ),
         const SizedBox(width: 8),
         _ActionChip(
@@ -477,29 +509,44 @@ class _ActionChip extends StatelessWidget {
   final IconData icon;
   final String label;
   final ColorScheme colorScheme;
+  final VoidCallback? onTap;
+  final bool isSelected;
 
   const _ActionChip({
     required this.icon,
     required this.label,
     required this.colorScheme,
+    this.onTap,
+    this.isSelected = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final activeColor = const Color(0xFF1D7AF3);
     return OutlinedButton.icon(
-      onPressed: () {
-        // TODO: handle action
-      },
-      icon: Icon(icon, size: 18),
-      label: Text(label),
+      onPressed: onTap ?? () {},
+      icon: Icon(
+        icon,
+        size: 18,
+        color: isSelected ? activeColor : colorScheme.onSurface,
+      ),
+      label: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
       style: OutlinedButton.styleFrom(
-        foregroundColor: colorScheme.onSurface,
-        side: BorderSide(color: colorScheme.outlineVariant),
+        foregroundColor: isSelected ? activeColor : colorScheme.onSurface,
+        side: BorderSide(
+          color: isSelected ? activeColor : colorScheme.outlineVariant,
+          width: isSelected ? 1.5 : 1,
+        ),
+        backgroundColor: isSelected ? activeColor.withValues(alpha: 0.05) : null,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+        textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
       ),
     );
   }
