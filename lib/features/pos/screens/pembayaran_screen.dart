@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/cart_item.dart';
 import '../models/member.dart';
 import '../widgets/cart_panel.dart';
+import '../widgets/diskon_dialog.dart';
 import '../widgets/tempo_dialog.dart';
 import 'member_picker_screen.dart';
 
@@ -65,6 +66,9 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
   /// Selected member (customer). Null until user picks one.
   Member? _selectedMember;
 
+  String _discountType = 'nominal';
+  double _discountValue = 0;
+
   // ═══════════════════════════════════════════════════════════════════════════
   // COMPUTED
   // ═══════════════════════════════════════════════════════════════════════════
@@ -76,7 +80,29 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
     return double.tryParse(_enteredAmount) ?? 0;
   }
 
-  bool get _canPay => _amountReceived >= widget.total;
+  double get _calculatedDiscount {
+    if (_discountValue == 0) return 0;
+    if (_discountType == 'nominal') return _discountValue;
+    return (widget.subtotal * _discountValue) / 100.0;
+  }
+
+  double get _calculatedTotal {
+    final t = widget.subtotal + widget.tax - _calculatedDiscount;
+    return t > 0 ? t : 0;
+  }
+
+  String get _diskonFormattedLabel {
+    if (_discountValue == 0) return 'Diskon';
+    if (_discountType == 'nominal') {
+      return _formatCurrency(_discountValue);
+    } else {
+      String val = _discountValue.toString();
+      if (val.endsWith('.0')) val = val.substring(0, val.length - 2);
+      return '$val%';
+    }
+  }
+
+  bool get _canPay => _amountReceived >= _calculatedTotal;
 
   // ═══════════════════════════════════════════════════════════════════════════
   // HELPERS
@@ -96,7 +122,8 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
               cart: widget.cart,
               subtotal: widget.subtotal,
               tax: widget.tax,
-              total: widget.total,
+              diskon: _calculatedDiscount,
+              total: _calculatedTotal,
               isMobileSheet: true,
               readonly: true,
               onUpdateQuantity: (item, delta) {},
@@ -118,6 +145,22 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
     );
     if (member != null && mounted) {
       setState(() => _selectedMember = member);
+    }
+  }
+
+  void _openDiskonDialog() async {
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (_) => DiskonDialog(
+        initialType: _discountType,
+        initialValue: _discountValue,
+      ),
+    );
+    if (result != null && mounted) {
+      setState(() {
+        _discountType = result['type'];
+        _discountValue = result['value'];
+      });
     }
   }
 
@@ -166,7 +209,7 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
   }
 
   void _onExactAmount() {
-    setState(() => _enteredAmount = widget.total.toStringAsFixed(0));
+    setState(() => _enteredAmount = _calculatedTotal.toStringAsFixed(0));
   }
 
   void _handlePay() async {
@@ -197,6 +240,8 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
         'member': _selectedMember,
         'dueDate': result['dueDate'],
         'amountReceived': _amountReceived,
+        'discountType': _discountType,
+        'discountValue': _discountValue,
       });
     }
   }
@@ -237,7 +282,7 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
         children: [
           const SizedBox(height: 8),
           _TotalTagihanCard(
-            total: widget.total,
+            total: _calculatedTotal,
             totalItems: _totalItems,
             formatCurrency: _formatCurrency,
             colorScheme: colorScheme,
@@ -248,7 +293,10 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
           _ActionChipsRow(
             colorScheme: colorScheme,
             selectedMemberName: _selectedMember?.name,
+            hasDiskon: _discountValue > 0,
+            diskonLabel: _diskonFormattedLabel,
             onPelangganTap: _openMemberPicker,
+            onDiskonTap: _openDiskonDialog,
           ),
           const SizedBox(height: 12),
           _PaymentMethodTabs(
@@ -261,7 +309,7 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
           _AmountReceivedCard(
             formattedAmount: _formatEnteredAmount(),
             amountReceived: _amountReceived,
-            total: widget.total,
+            total: _calculatedTotal,
             formatCurrency: _formatCurrency,
             colorScheme: colorScheme,
             textTheme: textTheme,
@@ -281,13 +329,13 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
       onDigit: _onDigit,
       onBackspace: _onBackspace,
       onClear: _onClear,
-      canPay: true, // Allow clicking to trigger Tempo dialog if insufficient
+      isAmountSufficient: _canPay,
       onPay: _handlePay,
       colorScheme: colorScheme,
       textTheme: textTheme,
       blue: blue,
       quickAmountChips: _QuickAmountChips(
-        total: widget.total,
+        total: _calculatedTotal,
         onExact: _onExactAmount,
         onQuickAmount: _onQuickAmount,
         formatCurrency: _formatCurrency,
@@ -349,7 +397,7 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
                   children: [
                     const SizedBox(height: 8),
                     _TotalTagihanCard(
-                      total: widget.total,
+                      total: _calculatedTotal,
                       totalItems: _totalItems,
                       formatCurrency: _formatCurrency,
                       colorScheme: colorScheme,
@@ -360,7 +408,10 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
                     _ActionChipsRow(
                       colorScheme: colorScheme,
                       selectedMemberName: _selectedMember?.name,
+                      hasDiskon: _discountValue > 0,
+                      diskonLabel: _diskonFormattedLabel,
                       onPelangganTap: _openMemberPicker,
+                      onDiskonTap: _openDiskonDialog,
                     ),
                     const SizedBox(height: 16),
                     _PaymentMethodTabs(
@@ -373,14 +424,14 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
                     _AmountReceivedCard(
                       formattedAmount: _formatEnteredAmount(),
                       amountReceived: _amountReceived,
-                      total: widget.total,
+                      total: _calculatedTotal,
                       formatCurrency: _formatCurrency,
                       colorScheme: colorScheme,
                       textTheme: textTheme,
                     ),
                     const SizedBox(height: 16),
                     _QuickAmountChips(
-                      total: widget.total,
+                      total: _calculatedTotal,
                       onExact: _onExactAmount,
                       onQuickAmount: _onQuickAmount,
                       formatCurrency: _formatCurrency,
@@ -396,7 +447,7 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
                 onDigit: _onDigit,
                 onBackspace: _onBackspace,
                 onClear: _onClear,
-                canPay: true, // Allow clicking to trigger Tempo dialog if insufficient
+                isAmountSufficient: _canPay,
                 onPay: _handlePay,
                 colorScheme: colorScheme,
                 textTheme: textTheme,
@@ -503,12 +554,18 @@ class _TotalTagihanCard extends StatelessWidget {
 class _ActionChipsRow extends StatelessWidget {
   final ColorScheme colorScheme;
   final String? selectedMemberName;
+  final bool hasDiskon;
+  final String diskonLabel;
   final VoidCallback? onPelangganTap;
+  final VoidCallback? onDiskonTap;
 
   const _ActionChipsRow({
     required this.colorScheme,
     this.selectedMemberName,
+    this.hasDiskon = false,
+    required this.diskonLabel,
     this.onPelangganTap,
+    this.onDiskonTap,
   });
 
   @override
@@ -527,8 +584,10 @@ class _ActionChipsRow extends StatelessWidget {
         const SizedBox(width: 8),
         _ActionChip(
           icon: Icons.percent,
-          label: 'Diskon',
+          label: diskonLabel,
           colorScheme: colorScheme,
+          onTap: onDiskonTap,
+          isSelected: hasDiskon,
         ),
         const SizedBox(width: 8),
         _ActionChip(
@@ -860,7 +919,7 @@ class _NumpadSection extends StatelessWidget {
   final ValueChanged<String> onDigit;
   final VoidCallback onBackspace;
   final VoidCallback onClear;
-  final bool canPay;
+  final bool isAmountSufficient;
   final VoidCallback onPay;
   final ColorScheme colorScheme;
   final TextTheme textTheme;
@@ -872,7 +931,7 @@ class _NumpadSection extends StatelessWidget {
     required this.onDigit,
     required this.onBackspace,
     required this.onClear,
-    required this.canPay,
+    required this.isAmountSufficient,
     required this.onPay,
     required this.colorScheme,
     required this.textTheme,
@@ -1055,29 +1114,45 @@ class _NumpadSection extends StatelessWidget {
   }
 
   Widget _payButton() {
+    final labelText = isAmountSufficient ? 'Bayar' : 'Lanjutkan';
+    final buttonStyle = FilledButton.styleFrom(
+      backgroundColor: blue,
+      foregroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+      ),
+    );
+
     return Expanded(
       flex: 2,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4),
         child: SizedBox(
           height: expandVertically ? double.infinity : 48,
-          child: FilledButton.icon(
-            onPressed: canPay ? onPay : null,
-            icon: const Icon(Icons.payments_outlined, size: 20),
-            label: const Text(
-              'Bayar',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-            ),
-            style: FilledButton.styleFrom(
-              backgroundColor: blue,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: blue.withValues(alpha: 0.4),
-              disabledForegroundColor: Colors.white70,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-            ),
-          ),
+          child: isAmountSufficient
+              ? FilledButton.icon(
+                  onPressed: onPay,
+                  icon: const Icon(Icons.payments_outlined, size: 20),
+                  label: Text(
+                    labelText,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  style: buttonStyle,
+                )
+              : FilledButton(
+                  onPressed: onPay,
+                  style: buttonStyle,
+                  child: Text(
+                    labelText,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
         ),
       ),
     );

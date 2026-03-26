@@ -27,6 +27,7 @@ class CartPanel extends StatelessWidget {
   final List<CartItem> cart;
   final double subtotal;
   final double tax;
+  final double diskon;
   final double total;
   final Function(CartItem, int) onUpdateQuantity;
   final VoidCallback onClearCart;
@@ -40,6 +41,7 @@ class CartPanel extends StatelessWidget {
     required this.cart,
     required this.subtotal,
     required this.tax,
+    this.diskon = 0,
     required this.total,
     required this.onUpdateQuantity,
     required this.onClearCart,
@@ -118,6 +120,7 @@ class CartPanel extends StatelessWidget {
           _CartSummary(
             subtotal: subtotal,
             tax: tax,
+            diskon: diskon,
             total: total,
             cart: cart,
             isMobileSheet: isMobileSheet,
@@ -503,6 +506,7 @@ class _QtyButton extends StatelessWidget {
 class _CartSummary extends StatelessWidget {
   final double subtotal;
   final double tax;
+  final double diskon;
   final double total;
   final List<CartItem> cart;
   final bool isMobileSheet;
@@ -515,6 +519,7 @@ class _CartSummary extends StatelessWidget {
   const _CartSummary({
     required this.subtotal,
     required this.tax,
+    this.diskon = 0,
     required this.total,
     required this.cart,
     required this.isMobileSheet,
@@ -559,7 +564,7 @@ class _CartSummary extends StatelessWidget {
             // Discount
             _SummaryRow(
               label: 'Diskon',
-              value: '-Rp 0',
+              value: diskon > 0 ? '-${formatCurrency(diskon)}' : '-Rp 0',
               textTheme: textTheme,
               valueColor: Colors.green,
             ),
