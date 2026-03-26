@@ -7,6 +7,7 @@ import '../../../../core/database/app_database.dart';
 import '../../../../core/database/daos/member_dao.dart';
 import '../data/repositories/member_repository_impl.dart';
 import '../domain/repositories/member_repository.dart';
+
 /// Full-screen member list picker.
 ///
 /// Header follows the same structure as [SalesScreen]:
@@ -29,7 +30,9 @@ import '../domain/repositories/member_repository.dart';
 /// └──────────────────────────────────────────┘
 /// ```
 class MemberPickerScreen extends StatefulWidget {
-  const MemberPickerScreen({super.key});
+  final String? selectedMemberId;
+
+  const MemberPickerScreen({super.key, this.selectedMemberId});
 
   @override
   State<MemberPickerScreen> createState() => _MemberPickerScreenState();
@@ -80,11 +83,38 @@ class _MemberPickerScreenState extends State<MemberPickerScreen>
       if (list.isEmpty) {
         // Seed initial dummy data if DB is empty
         final initialMembers = [
-          const Member(id: '#8821', name: 'Sarah Widodo', phone: '0895 0000 69', points: 1240),
-          const Member(id: '#8850', name: 'Huda Rakabuming', phone: '0895 6969 69', points: 5240),
-          const Member(id: '#8830', name: 'Galih Latadahiya', phone: '0895 2400 24', points: 2300),
-          const Member(id: '#8851', name: 'Hasan Pangarep', phone: '0895 2400 24', points: 2300, statusLabel: 'Pembayaran tertunda'),
-          const Member(id: '#8810', name: 'Surya Binsar Panjahitan', phone: '0895 2400 24', points: 3200, statusLabel: 'Pembayaran tertunda'),
+          const Member(
+            id: '#8821',
+            name: 'Sarah Widodo',
+            phone: '0895 0000 69',
+            points: 1240,
+          ),
+          const Member(
+            id: '#8850',
+            name: 'Huda Rakabuming',
+            phone: '0895 6969 69',
+            points: 5240,
+          ),
+          const Member(
+            id: '#8830',
+            name: 'Galih Latadahiya',
+            phone: '0895 2400 24',
+            points: 2300,
+          ),
+          const Member(
+            id: '#8851',
+            name: 'Hasan Pangarep',
+            phone: '0895 2400 24',
+            points: 2300,
+            statusLabel: 'Pembayaran tertunda',
+          ),
+          const Member(
+            id: '#8810',
+            name: 'Surya Binsar Panjahitan',
+            phone: '0895 2400 24',
+            points: 3200,
+            statusLabel: 'Pembayaran tertunda',
+          ),
         ];
         for (final m in initialMembers) {
           await _repository.saveMember(m);
@@ -148,9 +178,9 @@ class _MemberPickerScreenState extends State<MemberPickerScreen>
 
   String _formatPoints(int points) {
     return points.toString().replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (Match m) => '${m[1]},',
-        );
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]},',
+    );
   }
 
   // ═════════════════════════════════════════════════════════════════════════════
@@ -198,10 +228,7 @@ class _MemberPickerScreenState extends State<MemberPickerScreen>
                       color: colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(28),
                     ),
-                    padding: EdgeInsets.only(
-                      left: t > 0 ? 4 : 16,
-                      right: 16,
-                    ),
+                    padding: EdgeInsets.only(left: t > 0 ? 4 : 16, right: 16),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
@@ -324,22 +351,24 @@ class _MemberPickerScreenState extends State<MemberPickerScreen>
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _filteredMembers.isEmpty
-              ? _EmptyState(
-                  colorScheme: colorScheme,
-                  textTheme: textTheme,
-                  query: _searchController.text,
-                )
-              : ListView.separated(
+          ? _EmptyState(
+              colorScheme: colorScheme,
+              textTheme: textTheme,
+              query: _searchController.text,
+            )
+          : ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               itemCount: _filteredMembers.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 4),
+              separatorBuilder: (_, _) => const SizedBox(height: 4),
               itemBuilder: (context, index) {
                 final member = _filteredMembers[index];
+                final isSelected = member.id == widget.selectedMemberId;
                 return _MemberCard(
                   member: member,
                   formatPoints: _formatPoints,
                   colorScheme: colorScheme,
                   textTheme: textTheme,
+                  isSelected: isSelected,
                   onTap: () => Navigator.of(context).pop(member),
                 );
               },
@@ -349,9 +378,7 @@ class _MemberPickerScreenState extends State<MemberPickerScreen>
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           final newMember = await Navigator.of(context).push<Member>(
-            MaterialPageRoute(
-              builder: (_) => const CreateMemberScreen(),
-            ),
+            MaterialPageRoute(builder: (_) => const CreateMemberScreen()),
           );
           // If a new member was created, add it to the list and save to DB.
           if (newMember != null && mounted) {
@@ -363,9 +390,7 @@ class _MemberPickerScreenState extends State<MemberPickerScreen>
         },
         backgroundColor: const Color(0xFF1D7AF3),
         foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: const Icon(Icons.add, size: 28),
       ),
     );
@@ -403,9 +428,7 @@ class _EmptyState extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             query.isEmpty ? 'Belum ada member' : 'Member tidak ditemukan',
-            style: textTheme.bodyLarge?.copyWith(
-              color: colorScheme.outline,
-            ),
+            style: textTheme.bodyLarge?.copyWith(color: colorScheme.outline),
           ),
           if (query.isNotEmpty) ...[
             const SizedBox(height: 4),
@@ -429,6 +452,7 @@ class _MemberCard extends StatelessWidget {
   final String Function(int) formatPoints;
   final ColorScheme colorScheme;
   final TextTheme textTheme;
+  final bool isSelected;
   final VoidCallback onTap;
 
   const _MemberCard({
@@ -437,13 +461,18 @@ class _MemberCard extends StatelessWidget {
     required this.colorScheme,
     required this.textTheme,
     required this.onTap,
+    this.isSelected = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final activeBlue = const Color(0xFF1D7AF3);
+
     return Container(
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.25),
+        color: isSelected
+            ? activeBlue
+            : colorScheme.surfaceContainerHighest.withValues(alpha: 0.25),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Material(
@@ -460,6 +489,7 @@ class _MemberCard extends StatelessWidget {
                   name: member.name,
                   avatarUrl: member.avatarUrl,
                   colorScheme: colorScheme,
+                  isSelected: isSelected,
                 ),
                 const SizedBox(width: 14),
 
@@ -472,7 +502,9 @@ class _MemberCard extends StatelessWidget {
                       Text(
                         'ID: ${member.id}',
                         style: textTheme.labelSmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
+                          color: isSelected
+                              ? Colors.white.withValues(alpha: 0.8)
+                              : colorScheme.onSurfaceVariant,
                           fontWeight: FontWeight.w500,
                           letterSpacing: 0.3,
                         ),
@@ -483,6 +515,7 @@ class _MemberCard extends StatelessWidget {
                         member.name,
                         style: textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w700,
+                          color: isSelected ? Colors.white : null,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -492,7 +525,9 @@ class _MemberCard extends StatelessWidget {
                       Text(
                         member.phone,
                         style: textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
+                          color: isSelected
+                              ? Colors.white.withValues(alpha: 0.8)
+                              : colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -512,15 +547,17 @@ class _MemberCard extends StatelessWidget {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: member.points >= 5000
-                            ? const Color(0xFF4CAF50)
-                            : const Color(0xFF1D7AF3),
+                        color: isSelected
+                            ? Colors.white
+                            : (member.points >= 5000
+                                  ? const Color(0xFF4CAF50)
+                                  : activeBlue),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         '${formatPoints(member.points)} PTS',
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: isSelected ? activeBlue : Colors.white,
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.3,
@@ -556,11 +593,13 @@ class _MemberAvatar extends StatelessWidget {
   final String name;
   final String? avatarUrl;
   final ColorScheme colorScheme;
+  final bool isSelected;
 
   const _MemberAvatar({
     required this.name,
     required this.avatarUrl,
     required this.colorScheme,
+    this.isSelected = false,
   });
 
   @override
@@ -580,13 +619,15 @@ class _MemberAvatar extends StatelessWidget {
       }
     }
 
-    return Container(
+    final avatarWidget = Container(
       width: 50,
       height: 50,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+          color: isSelected
+              ? Colors.white.withValues(alpha: 0.4)
+              : colorScheme.outlineVariant.withValues(alpha: 0.5),
           width: 2,
         ),
         image: image,
@@ -605,6 +646,30 @@ class _MemberAvatar extends StatelessWidget {
               ),
             )
           : null,
+    );
+
+    if (!isSelected) return avatarWidget;
+
+    return Stack(
+      children: [
+        avatarWidget,
+        Positioned(
+          right: 0,
+          bottom: 0,
+          child: Container(
+            padding: const EdgeInsets.all(2),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.check_circle,
+              color: Color(0xFF4CAF50),
+              size: 20,
+            ),
+          ),
+        ),
+      ],
     );
   }
 

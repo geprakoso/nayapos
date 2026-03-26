@@ -75,7 +75,8 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
     return double.tryParse(_enteredAmount) ?? 0;
   }
 
-  double get _change => (_amountReceived - widget.total).clamp(0, double.infinity);
+  double get _change =>
+      (_amountReceived - widget.total).clamp(0, double.infinity);
 
   bool get _canPay => _amountReceived >= widget.total;
 
@@ -113,7 +114,8 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
   void _openMemberPicker() async {
     final member = await Navigator.of(context).push<Member>(
       MaterialPageRoute(
-        builder: (_) => const MemberPickerScreen(),
+        builder: (_) =>
+            MemberPickerScreen(selectedMemberId: _selectedMember?.id),
       ),
     );
     if (member != null && mounted) {
@@ -150,10 +152,12 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
 
   void _onBackspace() {
     if (_enteredAmount.isNotEmpty) {
-      setState(() => _enteredAmount = _enteredAmount.substring(
-            0,
-            _enteredAmount.length - 1,
-          ));
+      setState(
+        () => _enteredAmount = _enteredAmount.substring(
+          0,
+          _enteredAmount.length - 1,
+        ),
+      );
     }
   }
 
@@ -187,9 +191,7 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
           const SizedBox(width: 4),
           Text(
             'Pembayaran',
-            style: textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+            style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -239,7 +241,11 @@ class _PembayaranScreenState extends State<PembayaranScreen> {
     );
   }
 
-  Widget _buildNumpad(ColorScheme colorScheme, TextTheme textTheme, Color blue) {
+  Widget _buildNumpad(
+    ColorScheme colorScheme,
+    TextTheme textTheme,
+    Color blue,
+  ) {
     return _NumpadSection(
       onDigit: _onDigit,
       onBackspace: _onBackspace,
@@ -482,7 +488,9 @@ class _ActionChipsRow extends StatelessWidget {
     return Row(
       children: [
         _ActionChip(
-          icon: selectedMemberName != null ? Icons.person : Icons.person_outline,
+          icon: selectedMemberName != null
+              ? Icons.person
+              : Icons.person_outline,
           label: selectedMemberName ?? 'Pelanggan',
           colorScheme: colorScheme,
           onTap: onPelangganTap,
@@ -530,21 +538,17 @@ class _ActionChip extends StatelessWidget {
         size: 18,
         color: isSelected ? activeColor : colorScheme.onSurface,
       ),
-      label: Text(
-        label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
+      label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
       style: OutlinedButton.styleFrom(
         foregroundColor: isSelected ? activeColor : colorScheme.onSurface,
         side: BorderSide(
           color: isSelected ? activeColor : colorScheme.outlineVariant,
           width: isSelected ? 1.5 : 1,
         ),
-        backgroundColor: isSelected ? activeColor.withValues(alpha: 0.05) : null,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        backgroundColor: isSelected
+            ? activeColor.withValues(alpha: 0.05)
+            : null,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
       ),
@@ -581,9 +585,7 @@ class _PaymentMethodTabs extends StatelessWidget {
         final isSelected = i == selectedIndex;
         return Expanded(
           child: Padding(
-            padding: EdgeInsets.only(
-              right: i < _methods.length - 1 ? 8 : 0,
-            ),
+            padding: EdgeInsets.only(right: i < _methods.length - 1 ? 8 : 0),
             child: Material(
               color: isSelected
                   ? const Color(0xFF1D7AF3)
@@ -608,8 +610,9 @@ class _PaymentMethodTabs extends StatelessWidget {
                       Text(
                         method.label,
                         style: textTheme.labelMedium?.copyWith(
-                          fontWeight:
-                              isSelected ? FontWeight.w700 : FontWeight.w500,
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
                           color: isSelected
                               ? Colors.white
                               : colorScheme.onSurfaceVariant,
@@ -810,9 +813,7 @@ class _QuickChip extends StatelessWidget {
       style: OutlinedButton.styleFrom(
         foregroundColor: colorScheme.onSurface,
         side: BorderSide(color: colorScheme.outlineVariant),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
       child: Text(
@@ -861,12 +862,7 @@ class _NumpadSection extends StatelessWidget {
       ],
     );
     Widget row2 = Row(
-      children: [
-        _numKey('4'),
-        _numKey('5'),
-        _numKey('6'),
-        _emptyOrClear(),
-      ],
+      children: [_numKey('4'), _numKey('5'), _numKey('6'), _emptyOrClear()],
     );
     Widget row3 = Row(
       children: [
@@ -876,13 +872,7 @@ class _NumpadSection extends StatelessWidget {
         _funcKeyText('C', onClear),
       ],
     );
-    Widget row4 = Row(
-      children: [
-        _numKey('000'),
-        _numKey('0'),
-        _payButton(),
-      ],
-    );
+    Widget row4 = Row(children: [_numKey('000'), _numKey('0'), _payButton()]);
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
@@ -901,10 +891,30 @@ class _NumpadSection extends StatelessWidget {
                   quickAmountChips!,
                   const SizedBox(height: 10),
                 ],
-                Expanded(child: Padding(padding: const EdgeInsets.symmetric(vertical: 3), child: row1)),
-                Expanded(child: Padding(padding: const EdgeInsets.symmetric(vertical: 3), child: row2)),
-                Expanded(child: Padding(padding: const EdgeInsets.symmetric(vertical: 3), child: row3)),
-                Expanded(child: Padding(padding: const EdgeInsets.symmetric(vertical: 3), child: row4)),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child: row1,
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child: row2,
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child: row3,
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child: row4,
+                  ),
+                ),
               ],
             )
           : Column(
@@ -1026,16 +1036,12 @@ class _NumpadSection extends StatelessWidget {
             icon: const Icon(Icons.payments_outlined, size: 20),
             label: const Text(
               'Bayar',
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-              ),
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
             ),
             style: FilledButton.styleFrom(
               backgroundColor: blue,
               foregroundColor: Colors.white,
-              disabledBackgroundColor:
-                  blue.withValues(alpha: 0.4),
+              disabledBackgroundColor: blue.withValues(alpha: 0.4),
               disabledForegroundColor: Colors.white70,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
