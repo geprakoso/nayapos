@@ -7,6 +7,7 @@ import '../widgets/mobile_cart_button.dart';
 import '../widgets/pos_drawer.dart';
 import 'barcode_scanner_screen.dart';
 import 'pembayaran_screen.dart';
+import 'transaction_success_screen.dart';
 
 /// Main POS sales screen — the primary interface for creating orders.
 ///
@@ -258,6 +259,7 @@ class _SalesScreenState extends State<SalesScreen>
   /// Removes all items from the cart.
   /// [onStateChanged] callback is used by the bottom sheet for state sync.
   void _clearCart({VoidCallback? onStateChanged}) {
+    if (!mounted) return;
     setState(() {
       _cart.clear();
     });
@@ -311,9 +313,11 @@ class _SalesScreenState extends State<SalesScreen>
                 ),
                 onClearCart: () =>
                     _clearCart(onStateChanged: () => setModalState(() {})),
-                onCheckout: () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).push(
+                onCheckout: () async {
+                  final navigator = Navigator.of(context);
+                  navigator.pop(); // Close the cart sheet
+                  
+                  final result = await navigator.push(
                     MaterialPageRoute(
                       builder: (_) => PembayaranScreen(
                         cart: _cart,
@@ -323,6 +327,30 @@ class _SalesScreenState extends State<SalesScreen>
                       ),
                     ),
                   );
+
+                  if (result != null && result is Map && result['status'] == 'success') {
+                    final completedCart = List<CartItem>.from(_cart);
+                    final completedSubtotal = _subtotal;
+                    final completedTax = _tax;
+                    final completedTotal = _total;
+                    
+                    _clearCart(); // Sheet is already popped, no need for setModalState
+                    
+                    if (mounted) {
+                      navigator.push(
+                        MaterialPageRoute(
+                          builder: (_) => TransactionSuccessScreen(
+                            cart: completedCart,
+                            subtotal: completedSubtotal,
+                            tax: completedTax,
+                            total: completedTotal,
+                            amountReceived: result['amountReceived'] ?? 0.0,
+                            paymentMethodIndex: result['paymentMethodIndex'] ?? 0,
+                          ),
+                        ),
+                      );
+                    }
+                  }
                 },
                 onClose: () => Navigator.of(context).pop(),
               ),
@@ -578,11 +606,11 @@ class _SalesScreenState extends State<SalesScreen>
                   // popup (max 480×700) instead of full-page navigation.
                   // The dialog is dismissible by tapping outside.
                   // Navigator.pop() inside PembayaranScreen closes the dialog.
-                  onCheckout: () {
-                    showDialog(
+                  onCheckout: () async {
+                    final result = await showDialog(
                       context: context,
                       barrierDismissible: true,
-                      builder: (_) => Dialog(
+                      builder: (dialogContext) => Dialog(
                         insetPadding: const EdgeInsets.symmetric(
                           horizontal: 40,
                           vertical: 24,
@@ -607,6 +635,41 @@ class _SalesScreenState extends State<SalesScreen>
                         ),
                       ),
                     );
+
+                    if (result != null && result is Map && result['status'] == 'success') {
+                      final completedCart = List<CartItem>.from(_cart);
+                      final completedSubtotal = _subtotal;
+                      final completedTax = _tax;
+                      final completedTotal = _total;
+                      
+                      _clearCart();
+                      
+                      if (mounted) {
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (successContext) => Dialog(
+                            insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+                            clipBehavior: Clip.antiAlias,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                            child: IntrinsicHeight(
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(maxWidth: 480),
+                                child: TransactionSuccessScreen(
+                                  cart: completedCart,
+                                  subtotal: completedSubtotal,
+                                  tax: completedTax,
+                                  total: completedTotal,
+                                  amountReceived: result['amountReceived'] ?? 0.0,
+                                  paymentMethodIndex: result['paymentMethodIndex'] ?? 0,
+                                  isDialog: true,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+                    }
                   },
                 ),
               ),

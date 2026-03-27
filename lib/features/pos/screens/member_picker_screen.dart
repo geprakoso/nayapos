@@ -31,8 +31,13 @@ import '../domain/repositories/member_repository.dart';
 /// ```
 class MemberPickerScreen extends StatefulWidget {
   final String? selectedMemberId;
+  final bool isManagementMode; // Penentu Mode
 
-  const MemberPickerScreen({super.key, this.selectedMemberId});
+  const MemberPickerScreen({
+    super.key,
+    this.selectedMemberId,
+    this.isManagementMode = false, // Default: Mode Picker (Pilih Member)
+  });
 
   @override
   State<MemberPickerScreen> createState() => _MemberPickerScreenState();
@@ -369,7 +374,28 @@ class _MemberPickerScreenState extends State<MemberPickerScreen>
                   colorScheme: colorScheme,
                   textTheme: textTheme,
                   isSelected: isSelected,
-                  onTap: () => Navigator.of(context).pop(member),
+                  onTap: () async {
+                    if (widget.isManagementMode) {
+                      // MODE SCREEN (Management): Buka layar edit
+                      final result = await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => CreateMemberScreen(member: member),
+                        ),
+                      );
+                      if (result is Member && mounted) {
+                        // Update member
+                        await _repository.saveMember(result);
+                        _loadMembers(); // Refresh list
+                      } else if (result == 'delete' && mounted) {
+                        // Delete member
+                        await _repository.deleteMember(member.id);
+                        _loadMembers(); // Refresh list
+                      }
+                    } else {
+                      // MODE PICKER: Kembalikan data member ke layar sebelumnya (Pembayaran)
+                      Navigator.of(context).pop(member);
+                    }
+                  },
                 );
               },
             ),

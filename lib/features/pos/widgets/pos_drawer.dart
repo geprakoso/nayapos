@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../screens/member_picker_screen.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // DATA MODEL
@@ -197,10 +198,20 @@ class PosDrawer extends StatelessWidget {
                       item: _mainMenuItems[i],
                       isSelected: i == selectedIndex,
                       onTap: () {
-                        // TODO: Implement navigation per index.
-                        // Example:
-                        //   if (i == 1) Navigator.pushNamed(context, '/products');
-                        Navigator.pop(context); // close drawer
+                        if (i == 6) {
+                          // Index 6 is Member
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const MemberPickerScreen(
+                                isManagementMode: true,
+                              ),
+                            ),
+                          );
+                        } else {
+                          // TODO: Implement navigation per other indices.
+                          Navigator.pop(context); // close drawer
+                        }
                       },
                     ),
 

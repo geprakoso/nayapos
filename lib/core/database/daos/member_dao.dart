@@ -11,7 +11,7 @@ class MemberDao extends DatabaseAccessor<AppDatabase> with _$MemberDaoMixin {
   Future<List<MemberEntity>> getAllMembers() => select(members).get();
 
   Future<int> insertMember(MembersCompanion member) {
-    return into(members).insert(member);
+    return into(members).insert(member, mode: InsertMode.insertOrReplace);
   }
 
   Future<bool> updateMember(MemberEntity member) {

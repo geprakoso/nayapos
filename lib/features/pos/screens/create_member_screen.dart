@@ -39,7 +39,9 @@ import '../models/member.dart';
 /// └───────────────────────────────────────┘
 /// ```
 class CreateMemberScreen extends StatefulWidget {
-  const CreateMemberScreen({super.key});
+  final Member? member;
+
+  const CreateMemberScreen({super.key, this.member});
 
   @override
   State<CreateMemberScreen> createState() => _CreateMemberScreenState();
@@ -66,6 +68,19 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
   final ImagePicker _picker = ImagePicker();
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.member != null) {
+      _nameController.text = widget.member!.name;
+      _phoneController.text = widget.member!.phone;
+      _pointsController.text = widget.member!.points.toString();
+      _pickedImagePath = widget.member!.avatarUrl;
+      // Address is not part of the Member model yet but hinted in UI, 
+      // let's keep it as is or add it to the model later if needed.
+    }
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
@@ -84,7 +99,7 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final member = Member(
-      id: '#${DateTime.now().millisecondsSinceEpoch % 100000}',
+      id: widget.member?.id ?? '#${DateTime.now().millisecondsSinceEpoch % 100000}',
       name: _nameController.text.trim(),
       phone: _phoneController.text.trim(),
       points: int.tryParse(_pointsController.text.trim()) ?? 0,
@@ -92,6 +107,35 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
     );
 
     Navigator.of(context).pop(member);
+  }
+
+  void _delete() {
+    // Return a special signal or null to indicate deletion
+    // For now, let's use a convention: pop with a "deleted" marker or handle it in repo.
+    // The cleanest way is to pass back the member and a flag, but since we pop 
+    // the member, maybe we can use a wrapper or just the ID.
+    // Let's pop a "deleted" member with a special flag if we had one, 
+    // or just return null but with a confirmation.
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus Member?'),
+        content: const Text('Apakah Anda yakin ingin menghapus member ini?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // close dialog
+              Navigator.of(context).pop('delete'); // return delete signal
+            },
+            child: const Text('Hapus', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _pickImage(ImageSource source) async {
@@ -181,7 +225,9 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
       appBar: _AppBar(
         colorScheme: colorScheme,
         textTheme: textTheme,
+        isEdit: widget.member != null,
         onSave: _save,
+        onDelete: _delete,
       ),
       body: Form(
         key: _formKey,
@@ -296,12 +342,16 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
 class _AppBar extends StatelessWidget implements PreferredSizeWidget {
   final ColorScheme colorScheme;
   final TextTheme textTheme;
+  final bool isEdit;
   final VoidCallback onSave;
+  final VoidCallback onDelete;
 
   const _AppBar({
     required this.colorScheme,
     required this.textTheme,
+    required this.isEdit,
     required this.onSave,
+    required this.onDelete,
   });
 
   @override
@@ -327,12 +377,19 @@ class _AppBar extends StatelessWidget implements PreferredSizeWidget {
           // Title
           Expanded(
             child: Text(
-              'Tambah Member',
+              isEdit ? 'Ubah Member' : 'Tambah Member',
               style: textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
             ),
           ),
+
+          // Delete button (if edit)
+          if (isEdit)
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: Colors.red),
+              onPressed: onDelete,
+            ),
 
           // Save button
           Padding(

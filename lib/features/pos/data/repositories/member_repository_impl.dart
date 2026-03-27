@@ -40,6 +40,9 @@ class MemberRepositoryImpl implements MemberRepository {
 
   @override
   Future<void> saveMember(Member member) async {
+    // Better to use insert with OrReplace mode
+    // We can also just use the DAO's insertMember if we change its implementation
+    // or call it with the appropriate flag.
     await _dao.insertMember(_mapToCompanion(member));
   }
 
